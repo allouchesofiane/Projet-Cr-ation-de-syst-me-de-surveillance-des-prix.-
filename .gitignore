@@ -1,2 +1,9 @@
 env/
 *.csv/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+*.webp
