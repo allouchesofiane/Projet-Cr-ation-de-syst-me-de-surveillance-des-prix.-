@@ -3,7 +3,7 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin  
-
+import csv
 #declaration et affectation de la variable URL 
 product_page_url = "https://books.toscrape.com/catalogue/its-only-the-himalayas_981/index.html"
 
@@ -45,6 +45,27 @@ if response.ok :
         'Five': 5
     }
     review_rating = stars_dict.get(star_text, 0)
+    #fichier csv
+    csv_file = 'product_data.csv'
+    #la liste des entetes
+    headers = [
+        'product_page_url', 'universal_product_code', 'title',
+        'price_including_tax', 'price_excluding_tax',
+        'number_available', 'product_description',
+        'category', 'review_rating', 'image_url'
+    ]
+    #valeurs des headers
+    data = [
+        product_page_url, universal_product_code, title,
+        price_including_tax, price_excluding_tax,
+        number_available, product_description,
+        category, review_rating, image_url
+    ]
+    #ecrire les donnees dans un fichier csv
+    with open(csv_file, 'w', encoding='UTF8') as file :
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        writer.writerow(data)
 
     print(product_page_url)
     print(universal_product_code)
