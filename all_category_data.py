@@ -2,7 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import csv
-
+import os
+import re
 #url de l'index html
 url = "https://books.toscrape.com/index.html"
 # une fonction qui nous retour tous les liens de toutes les categories et le noms des categories
@@ -17,7 +18,7 @@ def all_category_data(url) :
     category_list = soup.find('ul', class_='nav nav-list').find('ul').find_all('a')
     #on boucle dans la liste des liens 
     for category in category_list:
-        category_name = category.text
+        category_name = category.text.strip()
         #on joins la url et le href de la balise
         category_url = urljoin(url, category['href'])
         #on ajoute un tuple de (category_name, category_url) dans la listecategory_links = []
@@ -96,6 +97,10 @@ def product_data(product_page_url) :
             'Five': 5
         }
         review_rating = stars_dict.get(star_text, 0)
+         
+        # Téléchargement de l'image
+        download_image(image_url, title, universal_product_code)
+
         #valeurs des headers
         data = [
             product_page_url, universal_product_code, title,
@@ -104,10 +109,33 @@ def product_data(product_page_url) :
             category, review_rating, image_url
         ]
         return data
+#Fonction pour télécharger l'image
+def download_image(image_url, title, upc):
+    # Créer le dossier 'images' s'il n'existe pas encore
+    os.makedirs('images', exist_ok=True)
+    
+    # Nettoie le titre pour un nom de fichier valide
+    valid_title = re.sub(r'[^A-Za-z0-9_]', '_', title).strip('_')
+    
+    # Limite le titre à 50 caractères max pour éviter des noms trop longs
+    valid_title = valid_title[:50]
+    
+    # Prépare le nom du fichier image
+    image_filename = os.path.join('images', f"{valid_title}_{upc}.jpg")
+    
+    # Télécharge l'image en petits morceaux (stream)
+    response = requests.get(image_url, stream=True)
+    if response.status_code == 200:
+        with open(image_filename, 'wb') as f:
+            for chunk in response.iter_content(1024):
+                f.write(chunk)
+
 #Sauvegarde dans un CSV    
 def save_books_to_csv(books_data, category_name):
 
-    csv_file = f"{category_name.strip()}.csv"
+    # Nettoie le nom du fichier CSV pour éviter des caractères bizarres
+    clean_category_name = re.sub(r'[^A-Za-z0-9_]', '_', category_name).strip('_')
+    csv_file = f"{clean_category_name}.csv"
     #la liste des entetes
     headers = [
         'product_page_url', 'universal_product_code', 'title',
@@ -125,6 +153,7 @@ def save_books_to_csv(books_data, category_name):
             writer.writerow(book)
 #on retourne category_name, category_url dans une liste 
 categories = all_category_data(url)
+
 #on parcour chaque tuple dans categories             
 for category_name, category_url in categories:
     #on recupere tous les liens des livres d'une categorie
