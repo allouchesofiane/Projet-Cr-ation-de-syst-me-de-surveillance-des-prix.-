@@ -8,3 +8,5 @@ env/
 *.bmp
 *.svg
 *.webp
+__pycache__/
+*.pyc
