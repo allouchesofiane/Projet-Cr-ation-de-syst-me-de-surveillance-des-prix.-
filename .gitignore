@@ -1,6 +1,6 @@
 env/
 /images/
-*.csv/
+*.csv
 *.png
 *.jpg
 *.jpeg
