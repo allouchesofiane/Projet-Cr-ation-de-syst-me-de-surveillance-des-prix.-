@@ -4,6 +4,13 @@ from urllib.parse import urljoin
 import csv
 import os
 
+# Créer un dossier csv/ s’il n’existe pas
+if not os.path.exists("csv"):
+    os.makedirs("csv")
+
+
+
+
 BASE_URL = 'https://books.toscrape.com/'
 
 def fetch_page(url):
@@ -14,6 +21,7 @@ def fetch_page(url):
     else:
         print("Erreur lors de la récupération de la page")
         return None
+
 
 def parse_product_data(soup, url):
     """Extrait toutes les données produit sous forme de dictionnaire."""
@@ -31,7 +39,7 @@ def parse_product_data(soup, url):
     price_excluding_tax = data.get('Price (excl. tax)')
     number_available = data.get('Availability')
     description_block = soup.find('article', class_='product_page')
-    product_description = description_block.find_all('p')[3].text.strip() if description_block else ''
+    product_description = description_block.find('p').text.strip()
     category = soup.find('ul', class_='breadcrumb').find_all('li')[2].text.strip()
     image_relative_url = soup.find('img')['src']
     image_url = urljoin(url, image_relative_url)
@@ -46,6 +54,7 @@ def parse_product_data(soup, url):
         'category': category,
         'image_url': image_url
     }
+
 
 def get_review_rating(soup):
     """Cherche le nombre d'étoiles et retourne un chiffre (1 à 5)."""
@@ -75,7 +84,8 @@ def get_review_rating(soup):
     }
 
     #Retourne le chiffre correspondant, ou 0 si on ne trouve pas :
-    return stars_dict.get(star_text)
+    return stars_dict.get(star_text, 0)
+
 
 def save_to_csv(data, csv_file):
     """Sauvegarde les données dans un fichier CSV."""
@@ -99,6 +109,7 @@ def save_to_csv(data, csv_file):
         else:
             print("Erreur : format des données non reconnu.")
 
+
 def get_all_categories(base_url=BASE_URL):
     """Récupère tous les liens des catégories à partir de la page d'accueil."""
     categories = {}
@@ -118,6 +129,7 @@ def get_all_categories(base_url=BASE_URL):
             categories[category_name] = category_url
     #Elle retourne un dictionnaire avec les noms comme clés et les URLs comme valeurs.
     return categories
+
 
 def get_all_book_links(category_url):
     """Récupère tous les liens des livres d'une catégorie (pagination comprise)."""
@@ -143,6 +155,7 @@ def get_all_book_links(category_url):
 
     return book_links
 
+
 def download_image(image_url, save_folder='images'):
     """Télécharge l'image depuis image_url et la sauvegarde dans le dossier choisi."""
     if not os.path.exists(save_folder):
@@ -161,3 +174,40 @@ def download_image(image_url, save_folder='images'):
                 f.write(chunk)
     else:
         print(f"Erreur de téléchargement pour l'image : {image_url}")
+
+
+def scrape_product(url):
+    """Scrape un produit spécifique et sauvegarde dans product_data.csv."""
+    soup = fetch_page(url)
+    if soup:
+        data = parse_product_data(soup, url)
+        data['review_rating'] = get_review_rating(soup)
+        save_to_csv(data, 'csv/product_data.csv')
+    else:
+        print("Erreur lors du scraping du produit.")
+
+
+def scrape_category(category_url):
+    """Scrape tous les livres d'une catégorie et sauvegarde dans un CSV."""
+    book_links = get_all_book_links(category_url)
+    all_books_data = []
+    for book_url in book_links:
+        soup = fetch_page(book_url)
+        if soup:
+            data = parse_product_data(soup, book_url)
+            data['review_rating'] = get_review_rating(soup)
+            all_books_data.append(data)
+            download_image(data['image_url'])
+    # Création du nom de fichier CSV
+    category_name = category_url.strip('/').split('/')[-2].replace('-', '_')
+    csv_filename = f"csv/{category_name}.csv"
+    #On enregistre la liste complète dans un fichier CSV, une ligne par livre
+    save_to_csv(all_books_data, csv_filename) 
+
+
+def scrape_all_categories():
+    """Scrape toutes les catégories et sauvegarde chaque résultat dans un CSV."""
+    categories = get_all_categories()
+    #on boucles sur chaque paire (nom de catégorie, URL) du dictionnaire
+    for name, url in categories.items():
+        scrape_category(url)
